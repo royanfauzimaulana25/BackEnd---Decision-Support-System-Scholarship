@@ -41,6 +41,17 @@ async def get_db():
 # ===========================================================================
 # Models
 # ===========================================================================
+# --- MODEL PYDANTIC ---
+class DeleteResponse(BaseModel):
+    message: str
+    id_pendaftaran_dihapus: int
+
+class IsPublishResponse(BaseModel):
+    is_publish: bool
+
+class PublishStatusUpdate(BaseModel):
+    is_publish: bool
+
 class SiswaCheckRequest(BaseModel):
     nisn: str
     nis: str
@@ -182,6 +193,37 @@ async def login(data: LoginRequest):
 # ===========================================================================
 # Pendaftaran Beasiswa
 # ===========================================================================
+@app.delete(
+    "/pendaftaran/{id_pendaftaran}",
+    response_model=DeleteResponse,
+    tags=["Pendaftaran Beasiswa"],
+    summary="Hapus Data Pendaftaran",
+    description="Menghapus data pendaftaran dan semua file terkait dari Supabase."
+)
+async def delete_pendaftaran(id_pendaftaran: int):
+    """
+    Endpoint untuk menghapus sebuah record pendaftaran berdasarkan ID-nya.
+    """
+    try:
+        delete_response = supabase.table("pendaftaran").delete().eq("id_pendaftaran", id_pendaftaran).execute()
+
+        if not delete_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Gagal menghapus record dari database (mungkin sudah terhapus)."
+            )
+
+        return DeleteResponse(
+            message="Data pendaftaran dan file terkait berhasil dihapus.",
+            id_pendaftaran_dihapus=id_pendaftaran
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Terjadi kesalahan pada server: {str(e)}"
+        )
+
 @app.post(
     "/beasiswa/rank/save",
     response_model=SuccessResponse,
@@ -804,4 +846,83 @@ async def get_statistik_pendaftaran():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Terjadi kesalahan saat mengambil statistik: {str(e)}"
+        )
+
+# ===========================================================================
+# Periode Beasiswa
+# ===========================================================================
+@app.patch(
+    "/periode/{id_periode}/publish",
+    tags=["Periode Beasiswa"],
+    summary="Update Status Publikasi Periode",
+    description="Mengubah status 'is_publish' sebuah periode beasiswa menjadi true atau false."
+)
+async def update_publish_status(id_periode: int, publish_data: PublishStatusUpdate):
+    """
+    Endpoint untuk mengupdate status `is_publish` dari sebuah periode beasiswa.
+
+    - **id_periode**: ID dari periode yang akan diupdate.
+    - **Request Body**: `{"is_publish": true}` atau `{"is_publish": false}`.
+    """
+    try:
+        # Update kolom 'is_publish' di tabel 'periode_beasiswa'
+        response = supabase.table("periode_beasiswa") \
+            .update({"is_publish": publish_data.is_publish}) \
+            .eq("id_periode", id_periode) \
+            .execute()
+
+        # Jika tidak ada baris yang diupdate, berarti ID tidak ditemukan
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Periode beasiswa dengan ID {id_periode} tidak ditemukan."
+            )
+
+        return {
+            "message": "Status publikasi berhasil diperbarui.",
+            "data": response.data[0]
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Terjadi kesalahan pada server: {str(e)}"
+        )
+
+    # --- ENDPOINT API (Baru) ---
+@app.get(
+    "/periode/{id_periode}/is-publish",
+    response_model=IsPublishResponse,
+    tags=["Periode Beasiswa"],
+    summary="Cek Status Publikasi Periode",
+    description="Mendapatkan status 'is_publish' (true atau false) dari sebuah periode beasiswa."
+)
+async def check_is_publish(id_periode: int):
+    """
+    Endpoint untuk mengecek status `is_publish` dari sebuah periode beasiswa.
+
+    - **id_periode**: ID dari periode yang akan diperiksa.
+    """
+    try:
+        # Ambil hanya kolom 'is_publish' untuk efisiensi
+        response = supabase.table("periode_beasiswa") \
+            .select("is_publish") \
+            .eq("id_periode", id_periode) \
+            .maybe_single() \
+            .execute()
+
+        # Jika tidak ada record yang ditemukan
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Periode beasiswa dengan ID {id_periode} tidak ditemukan."
+            )
+
+        # Kembalikan data dalam format yang sesuai dengan model respons
+        return IsPublishResponse(is_publish=response.data['is_publish'])
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Terjadi kesalahan pada server: {str(e)}"
         )

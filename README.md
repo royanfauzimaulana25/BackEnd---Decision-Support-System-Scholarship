@@ -14,14 +14,14 @@ A comprehensive template for building RESTful APIs with FastAPI.
 - **Docker support**
 
 ## Project Structure
-# Tracer Study SMA API
+#Schoolarship DSS SMA API
 
 A FastAPI application for tracking high school alumni information and education paths.
 
 ## Features
 
 - Alumni verification and registration
-- Tracer study form submission with document upload
+-Schoolarship DSS form submission with document upload
 - Statistics on alumni education paths
 - Reference data APIs for dropdowns and form options
 - Authentication system for admin access

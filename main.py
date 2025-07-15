@@ -11,6 +11,7 @@ import hypercorn
 from supabase import create_client, Client
 from calculate_saw import main
 import json
+from datetime import datetime
 
 load_dotenv()  # loads from .env file
 
@@ -446,7 +447,7 @@ async def submit_pendaftaran(
                 # Baca konten file
                 contents = upload_file.file.read()
                 # Tentukan path di dalam bucket
-                file_path = f"{payload.id_siswa}-{field_name}"
+                file_path = f"{payload.id_siswa}-{field_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
                 # Upload file
                 supabase.storage.from_('berkas-pendukung').upload(
